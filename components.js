@@ -1,6 +1,5 @@
 import { createElement } from "./functions.js"
 
-
 /**
  * @typedef {object} Todo
  * @property {number} id
@@ -10,20 +9,19 @@ import { createElement } from "./functions.js"
 
 export class TodoList {
     /**
-         * @type {Todo[]}
-         */
+     * @type {Todo[]}
+     */
     #todos = []
 
     /**
-         * @type {HTMLUListElement}
-         */
+     * @type {HTMLUListElement}
+     */
     #listElement = []
 
     /**
-         * @param {Todo[]} todos 
-         */
-    constructor (todos) {
-        
+     * @param {Todo[]} todos 
+     */
+    constructor(todos) {
         this.#todos = todos
     }
 
@@ -34,23 +32,21 @@ export class TodoList {
     appendTo(element) {
         element.innerHTML = `
             <form class="d-flex pb-4">
-                <input required="" class="form-control" type="text" placeholder="Acheter des patates..." name="title" data-com.bitwarden.browser.user-edited="yes">
+                <input required="" class="form-control" type="text" placeholder="Acheter des patates..." name="title">
                 <button class="btn btn-primary">Ajouter</button>
             </form>
             <main>
                 <div class="btn-group mb-4" role="group">
-                    <button type="button" class=" btn btn-outline-primary active" data-filter="all">Toutes</button>
-                    <button type="button" class=" btn btn-outline-primary" data-filter="todo">A faire</button>
-                    <button type="button" class=" btn btn-outline-primary" data-filter="done">Faites</button>
+                    <button type="button" class="btn btn-outline-primary active" data-filter="all">Toutes</button>
+                    <button type="button" class="btn btn-outline-primary" data-filter="todo">A faire</button>
+                    <button type="button" class="btn btn-outline-primary" data-filter="done">Faites</button>
                 </div>
-                <ul class="list-group">
-                
-                </ul>
+                <ul class="list-group"></ul>
             </main>
         `
         this.#listElement = element.querySelector('.list-group')
         for (let todo of this.#todos) {
-            const item = new TodoListItem(todo)
+            const item = new TodoListItem(todo, this)
             this.#listElement.append(item.element)
         }
         element.querySelector('form').addEventListener('submit', (e) => this.#onSubmit(e))
@@ -59,12 +55,11 @@ export class TodoList {
         })
     }
 
-
     /**
      * 
      * @param {SubmitEvent} e 
      */
-    #onSubmit (e) {
+    #onSubmit(e) {
         e.preventDefault()
         const form = e.currentTarget
         const title = new FormData(form).get('title').toString().trim()
@@ -72,21 +67,26 @@ export class TodoList {
             return
         }
         const todo = {
-            id : Date.now(),
+            id: Date.now(),
             title,
-            completed : false
+            completed: false
         }
-        const item = new TodoListItem(todo)
+        const item = new TodoListItem(todo, this)
         this.#listElement.prepend(item.element)
+        this.#todos.push(todo)
+        this.#onUpdate()
         form.reset()
+    }
 
+    #onUpdate() {
+        localStorage.setItem('todos', JSON.stringify(this.#todos))
     }
 
     /**
      * 
      * @param {PointerEvent} e 
      */
-    #onFilter (e) {
+    #onFilter(e) {
         e.preventDefault()
         const filter = e.currentTarget.getAttribute('data-filter')
         e.currentTarget.parentElement.querySelector('.active').classList.remove('active')
@@ -102,64 +102,66 @@ export class TodoList {
             this.#listElement.classList.remove('hide-completed')
         }
     }
+
+    removeTodo(id) {
+        this.#todos = this.#todos.filter(todo => todo.id !== id);
+        this.#onUpdate();
+    }
 }
 
 class TodoListItem {
-
     #element
 
     /**
      * @type {Todo}
      */
-    constructor(todo) {
+    constructor(todo, todoList) {
         const li = createElement('li', {
-            class : 'todo list-group-item d-flex align-items-center'
+            class: 'todo list-group-item d-flex align-items-center'
         })
 
         this.#element = li
 
-        const checkbox = createElement('input',{
-            type : 'checkbox',
-            class : 'form-check-input',
-            id : `todo-${todo.id}`,
-            checked : todo.completed
+        const checkbox = createElement('input', {
+            type: 'checkbox',
+            class: 'form-check-input',
+            id: `todo-${todo.id}`,
+            checked: todo.completed
         })
-        
+
         const label = createElement('label', {
-            class :'ms-2 form-check-label',
-            for : `todo-${todo.id}`,
+            class: 'ms-2 form-check-label',
+            for: `todo-${todo.id}`,
         })
         label.innerText = todo.title
-        
-        const removeButton = createElement('label', {
-            class :'ms-auto btn btn-danger btn-sm',
+
+        const removeButton = createElement('button', {
+            class: 'ms-auto btn btn-danger btn-sm',
+            type: 'button'
         })
-        removeButton.innerHTML = '<i class="bi-trash">'
+        removeButton.innerHTML = '<i class="bi-trash"></i>'
 
         li.append(checkbox)
         li.append(label)
         li.append(removeButton)
         this.toggle(checkbox)
 
-        removeButton.addEventListener('click', (e) => this.removeItem(e))
+        removeButton.addEventListener('click', () => {
+            todoList.removeTodo(todo.id);
+            this.removeItem();
+        })
         checkbox.addEventListener('change', e => this.toggle(e.currentTarget))
-        // this.#element = li
     }
 
     /**
      * @return {HTMLElement}
      */
-    get element () {
+    get element() {
         return this.#element
     }
 
-    /**
-     * 
-     * @param {PointEvent} e 
-     */
-    removeItem (e) {
-        e.preventDefault()
-        this.#element.remove()
+    removeItem() {
+        this.#element.remove();
     }
 
     /**
